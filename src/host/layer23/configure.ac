@@ -17,6 +17,7 @@ PKG_CHECK_MODULES(LIBOSMOCORE, libosmocore)
 PKG_CHECK_MODULES(LIBOSMOVTY, libosmovty)
 PKG_CHECK_MODULES(LIBOSMOGSM, libosmogsm)
 PKG_CHECK_MODULES(LIBOSMOCODEC, libosmocodec)
+PKG_CHECK_MODULES(LIBOSMODSP, libosmodsp)
 AC_CHECK_LIB(gps, gps_waiting, LIBGPS_CFLAGS=" -D_HAVE_GPSD" LIBGPS_LIBS=" -lgps ",,)
 AC_SUBST([LIBGPS_CFLAGS])
 AC_SUBST([LIBGPS_LIBS])
@@ -32,6 +33,7 @@ AC_OUTPUT(
     src/common/Makefile
     src/misc/Makefile
     src/mobile/Makefile
+    src/transceiver/Makefile
     include/Makefile
     include/osmocom/Makefile
     include/osmocom/bb/Makefile

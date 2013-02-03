@@ -85,6 +85,7 @@ struct dsp_section {
 #include "dsp_params.c"
 #include "dsp_bootcode.c"
 #include "dsp_dumpcode.c"
+#include "dsp_extcode.c"
 
 struct dsp_api dsp_api = {
 	.ndb	= (T_NDB_MCU_DSP *) BASE_API_NDB,
@@ -204,8 +205,11 @@ static void dsp_set_params(int16_t *param_tab, int param_size)
 	/* Start DSP up to bootloader */
 	dsp_pre_boot(dsp_bootcode);
 
-	/* FIXME: Implement Patch download, if any */
+	/* Load our DSP extensions */
+	dputs("Installing DSP extensions patch\n");
+	dsp_bl_upload_sections(dsp_extcode);
 
+	/* Configure API params */
 	dputs("Setting some dsp_api.ndb values\n");
 	dsp_api.ndb->d_background_enable = 0;
 	dsp_api.ndb->d_background_abort = 0;
@@ -225,9 +229,11 @@ static void dsp_set_params(int16_t *param_tab, int param_size)
 	dputs("Setting API NDB parameters\n");
 	for (i = 0; i < param_size; i ++)
 		*param_ptr++ = param_tab[i];
-	
-	dsp_dump_version();
 
+	/* Init address for the extensions */
+	dsp_api.param->d_gprs_install_address = DSP_EXT_START;
+
+	/* Perform actual boot */
 	dputs("Finishing download phase\n");
 	dsp_bl_start_at(DSP_START);
 
@@ -392,7 +398,7 @@ static void dsp_ndb_init(void)
 	ndb->d_afcctladd= ABB_VAL_T(AFCCTLADD, 0x000);  // Value at reset
 	ndb->d_vbuctrl	= ABB_VAL_T(VBUCTRL, 0x0C9);	// Uplink gain amp 0dB, Sidetone gain to mute
 	ndb->d_vbdctrl	= ABB_VAL_T(VBDCTRL, 0x006);	// Downlink gain amp 0dB, Volume control 0 dB
-	ndb->d_bbctrl	= ABB_VAL_T(BBCTRL,  0x2C1);	// value at reset
+	ndb->d_bbctrl	= ABB_VAL_T(BBCTRL,  0x2E1);	// value at reset
 	ndb->d_bulgcal	= ABB_VAL_T(BULGCAL, 0x000);	// value at reset
 	ndb->d_apcoff	= ABB_VAL_T(APCOFF,  0x040);	// value at reset
 	ndb->d_bulioff	= ABB_VAL_T(BULIOFF, 0x0FF);	// value at reset

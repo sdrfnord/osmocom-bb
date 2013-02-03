@@ -101,7 +101,7 @@ static const struct log_info_cat default_categories[] = {
 		.name = "DL1C",
 		.description = "Layer 1 Control",
 		.color = "\033[1;31m",
-		.enabled = 1, .loglevel = LOGL_NOTICE,
+		.enabled = 1, .loglevel = LOGL_DEBUG,
 	},
 	[DSAP]	= {
 		.name = "DSAP",
@@ -124,6 +124,18 @@ static const struct log_info_cat default_categories[] = {
 	[DGPS] = {
 		.name = "DGPS",
 		.description = "GPS",
+		.color = "\033[1;35m",
+		.enabled = 1, .loglevel = LOGL_DEBUG,
+	},
+	[DTRX] = {
+		.name = "TRX",
+		.description = "TRX interface",
+		.color = "\033[1;36m",
+		.enabled = 1, .loglevel = LOGL_DEBUG,
+	},
+	[DAPP] = {
+		.name = "APP",
+		.description = "Application",
 		.color = "\033[1;35m",
 		.enabled = 1, .loglevel = LOGL_DEBUG,
 	},

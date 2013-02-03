@@ -144,9 +144,9 @@ bat_compal_e88_goto_state(enum bat_compal_e88_chg_state newstate){
 	if(bat_compal_e88_chg_state == newstate) /* already there? */
 		return;
 
-	printf("\033[34;1mCHARGER: %s --> %s.\033[0m\n",
-			bat_compal_e88_chg_state_names[bat_compal_e88_chg_state],
-			bat_compal_e88_chg_state_names[newstate]);
+//	printf("\033[34;1mCHARGER: %s --> %s.\033[0m\n",
+//			bat_compal_e88_chg_state_names[bat_compal_e88_chg_state],
+//			bat_compal_e88_chg_state_names[newstate]);
 
 	/* update user visible flags, set registers */
 	switch(newstate){
@@ -284,24 +284,24 @@ bat_compal_e88_upd_measurements(){
 	}
 
         /* DEBUG */
-        printf("BAT-ADC: ");
-        for(i=0;i<MADC_NUM_CHANNELS;i++)
-                printf("%3d ",bat_compal_e88_madc[i]);
-        printf("%c\n",32);
-        printf("\tCharger at %u mV.\n",battery_info.charger_volt_mV);
-        printf("\tBattery at %u mV.\n",battery_info.bat_volt_mV);
-        printf("\tCharging at %u mA.\n",battery_info.bat_chg_curr_mA);
-        printf("\tBattery capacity is %u%%.\n",battery_info.battery_percent);
-	printf("\tBattery range is %d..%d mV.\n",
-		ADC_TO_PHYSICAL(VBAT_empty,VBAT_LSB_uV),
-		ADC_TO_PHYSICAL(VBAT_full,VBAT_LSB_uV));
-        printf("\tBattery full at %d LSB .. full at %d LSB\n",VBAT_empty,VBAT_full);
-        printf("\tCharging at %d LSB (%d mA).\n",ICHG_set,
-                ADC_TO_PHYSICAL(ICHG_set,ICHG_LSB_uA));
-        i = twl3025_reg_read(BCICTL2);
-        printf("\tBCICTL2=0x%03x\n",i);      
-	printf("\tbattery-info.flags=0x%08x\n",battery_info.flags);
-	printf("\tbat_compal_e88_chg_state=%d\n",bat_compal_e88_chg_state);
+//        printf("BAT-ADC: ");
+//        for(i=0;i<MADC_NUM_CHANNELS;i++)
+//                printf("%3d ",bat_compal_e88_madc[i]);
+//        printf("%c\n",32);
+//        printf("\tCharger at %u mV.\n",battery_info.charger_volt_mV);
+//        printf("\tBattery at %u mV.\n",battery_info.bat_volt_mV);
+//        printf("\tCharging at %u mA.\n",battery_info.bat_chg_curr_mA);
+//        printf("\tBattery capacity is %u%%.\n",battery_info.battery_percent);
+//	printf("\tBattery range is %d..%d mV.\n",
+//		ADC_TO_PHYSICAL(VBAT_empty,VBAT_LSB_uV),
+//		ADC_TO_PHYSICAL(VBAT_full,VBAT_LSB_uV));
+//        printf("\tBattery full at %d LSB .. full at %d LSB\n",VBAT_empty,VBAT_full);
+//        printf("\tCharging at %d LSB (%d mA).\n",ICHG_set,
+//                ADC_TO_PHYSICAL(ICHG_set,ICHG_LSB_uA));
+//        i = twl3025_reg_read(BCICTL2);
+//        printf("\tBCICTL2=0x%03x\n",i);
+//	printf("\tbattery-info.flags=0x%08x\n",battery_info.flags);
+//	printf("\tbat_compal_e88_chg_state=%d\n",bat_compal_e88_chg_state);
 }
 
 /* bat_compal_e88_adc_read() :
@@ -378,7 +378,7 @@ static struct osmo_timer_list battery_compal88_timer = {
 
 void
 battery_compal_e88_init(){
-	printf("%s: starting up\n",__FUNCTION__);
+//	printf("%s: starting up\n",__FUNCTION__);
 	osmo_timer_schedule(&battery_compal88_timer,BATTERY_TIMER_DELAY);
 }
 
