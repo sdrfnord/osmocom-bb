@@ -221,9 +221,11 @@ _l1ctl_rx_bts_burst_ab_ind(struct app_state *as, struct msgb *msg)
 
 	fn = ntohl(bi->fn);
 
-	LOGP(DL1C, LOGL_INFO, "Access Burst Indication (fn=%d)\n", fn);
+	LOGP(DL1C, LOGL_INFO, "Access Burst Indication (fn=%d iq toa=%f)\n", fn, bi->toa);
 
 	gsm_ab_ind_process(as, bi, data, &toa);
+	toa += bi->toa;
+	LOGP(DL1C, LOGL_INFO, "Access Burst Indication (fn=%d toa=%f)\n", fn, toa);
 	trx_data_ind(as->trx, fn, 0, data, toa);
 
 exit:

@@ -599,9 +599,9 @@ static int l1ctl_bts_mode(struct msgb *msg)
 	l1s.bts.bsic  = bm->bsic;
 	l1s.bts.arfcn = ntohs(bm->band_arfcn);
 
-	l1s.tx_power = ms_pwr_ctl_lvl(gsm_arfcn2band(l1s.bts.arfcn), 15);
+	l1s.tx_power = ms_pwr_ctl_lvl(gsm_arfcn2band(l1s.bts.arfcn), 26);
 
-	printf("BTS MODE: %u %u\n", l1s.bts.bsic, l1s.bts.arfcn);
+	printf("BTS MODE: %u %u %u\n", l1s.bts.bsic, l1s.bts.arfcn, l1s.tx_power);
 
 	if (bm->enabled) {
 		mframe_enable(MF_TASK_BTS);

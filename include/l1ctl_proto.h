@@ -330,6 +330,7 @@ struct l1ctl_bts_burst_nb_ind {
 /* BTS mode: AB Burst Indication */
 struct l1ctl_bts_burst_ab_ind {
 	uint32_t fn;
+	uint8_t toa;
 	uint8_t iq[2*88];
 } __attribute__((packed));
 

@@ -137,14 +137,14 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 	{
 		static int energy_avg = 0x8000;
 
-		if (db->rx[0].data > (energy_avg << 1))
+		if (db->rx[0].data > ((energy_avg * 18) >> 4))
 		{
 			struct msgb *msg;
 			struct l1ctl_bts_burst_ab_ind *bi;
 			uint16_t *iq = &db->data[32];
-			int i;
+			int i, j;
 
-			printf("### RACH ### (%04x %04x - %04x)\n",
+			printf("RACH %04x %04x - %04x\n",
 				db->rx[0].data, energy_avg, db->rx[1].cmd);
 
 			/* Create message */
@@ -158,8 +158,11 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 			bi->fn = htonl(rx_time.fn);
 
 			/* Data (cut to 8 bits */
-			for (i=0; i<2*88; i++)
-				bi->iq[i] = iq[i] >> 8;
+			bi->toa = db->rx[1].cmd;
+			if (bi->toa > 68)
+				goto exit;
+			for (i=0,j=(db->rx[1].cmd)<<1; i<2*88; i++,j++)
+				bi->iq[i] = iq[j] >> 8;
 
 			/* Send it ! */
 			l1_queue_for_l2(msg);
@@ -172,12 +175,14 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 	{
 		uint16_t *d = &db->data[32];
 
-		if (d[3] > 0x1000) {
+//		if (d[3] > 0x1000) {
+//		if (d[3] > 0x0800) {
+		if (1) {
 			struct msgb *msg;
 			struct l1ctl_bts_burst_nb_ind *bi;
 			int i;
 
-			printf("### NB ### (%04x %04x)\n", d[1], d[3]);
+			printf("NB %04x %04x\n", d[1], d[3]);
 
 			/* Create message */
 			msg = l1ctl_msgb_alloc(L1CTL_BTS_BURST_NB_IND);
@@ -252,6 +257,8 @@ l1s_bts_cmd(uint8_t p1, uint8_t p2, uint16_t p3)
 
 		/* Select which type of burst */
 		if ((t3 >= 14) && (t3 <= 36))
+			db->rx[0].cmd = DSP_EXT_RX_CMD_AB;
+		else if ((t3 == 4) || (t3 == 5))
 			db->rx[0].cmd = DSP_EXT_RX_CMD_AB;
 		else if ((t3 == 45) || (t3 == 46))
 			db->rx[0].cmd = DSP_EXT_RX_CMD_AB;

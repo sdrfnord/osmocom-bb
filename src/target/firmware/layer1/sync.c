@@ -343,6 +343,7 @@ void l1s_tx_apc_helper(uint16_t arfcn)
 	   0dBm anyway.
 	*/
 	dsp_api.db_w->d_power_ctl = ABB_VAL(AUXAPC, auxapc);
+	printf("%x\n", dsp_api.db_w->d_power_ctl);
 
 	/* Update the ramp according to the PCL */
 	for (i = 0; i < 16; i++)
