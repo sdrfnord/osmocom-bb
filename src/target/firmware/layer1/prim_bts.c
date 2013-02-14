@@ -33,6 +33,7 @@
 #include <layer1/tdma_sched.h>
 #include <layer1/tpu_window.h>
 #include <layer1/trx.h>
+#include <layer1/rfch.h>
 
 
 /* ------------------------------------------------------------------------ */
@@ -132,12 +133,41 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 	/* RX side */
 	/* ------- */
 
+	if (rx_time.t3 == 1) {
+		struct msgb *msg;
+		struct l1ctl_bts_burst_nb_ind *bi;
+
+		/* Create message */
+		msg = l1ctl_msgb_alloc(L1CTL_BTS_BURST_NB_IND);
+		if (!msg)
+			goto exit;
+
+		bi = (struct l1ctl_bts_burst_nb_ind *) msgb_put(msg, sizeof(*bi));
+
+		/* Frame number */
+		bi->fn = htonl(rx_time.fn);
+
+		/* Timeslot */
+		if (l1s.bts.mode == 0)
+			bi->tn = 0;
+		else
+			bi->tn = 1;
+
+		/* no bits */
+		memset(bi->data, 0x00, sizeof(bi->data));
+
+		/* Send it ! */
+		l1_queue_for_l2(msg);
+
+		return 0;
+	}
+
 	/* Access Burst ? */
 	if (db->rx[0].cmd == DSP_EXT_RX_CMD_AB)
 	{
 		static int energy_avg = 0x8000;
 
-		if (db->rx[0].data > ((energy_avg * 18) >> 4))
+		if (db->rx[0].data > ((energy_avg * 20) >> 4))
 		{
 			struct msgb *msg;
 			struct l1ctl_bts_burst_ab_ind *bi;
@@ -182,7 +212,7 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 			struct l1ctl_bts_burst_nb_ind *bi;
 			int i;
 
-			printf("NB %04x %04x\n", d[1], d[3]);
+//			printf("NB %04x %04x\n", d[1], d[3]);
 
 			/* Create message */
 			msg = l1ctl_msgb_alloc(L1CTL_BTS_BURST_NB_IND);
@@ -195,7 +225,10 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 			bi->fn = htonl(rx_time.fn);
 
 			/* Timeslot */
-			bi->tn = 0;
+			if (l1s.bts.mode == 0)
+				bi->tn = 0;
+			else
+				bi->tn = 1;
 
 			/* TOA */
 			bi->toa = d[0];
@@ -235,28 +268,33 @@ l1s_bts_cmd(uint8_t p1, uint8_t p2, uint16_t p3)
 	uint8_t data[15];
 	int type, i, t3;
 
-	/* Enable extensions */
-	dsp_ext_api.ndb->active = 1;
-
-	/* Force the TSC in all cases */
-	dsp_ext_api.ndb->tsc = l1s.bts.bsic & 7;
-
+	t3 = l1s.next_time.t3;
 
 	/* RX side */
 	/* ------- */
 
-	db->rx[0].cmd = 0;
-	db->rx[0].data = 0x000;
+	/* Enable extensions */
+	dsp_ext_api.ndb->active = 1;
 
-	t3 = l1s.next_time.t3;
+//	if (t3 != 3 && t3 != 2) {
+		/* Force the TSC in all cases */
+		dsp_ext_api.ndb->tsc = l1s.bts.bsic & 7;
+//	}
 
-	if ((t3 < 2) || (t3 > 5))
+
+//printf("fn at bts=%d\n", t3);
+	if (t3 != 2)
 	{
+		db->rx[0].cmd = 0;
+		db->rx[0].data = 0x000;
+
 		/* We're really a frame in advance since we RX in the next frame ! */
 		t3 = t3 - 1;
 
 		/* Select which type of burst */
-		if ((t3 >= 14) && (t3 <= 36))
+		if (l1s.bts.mode == 1) /* TS 1 */
+			db->rx[0].cmd = DSP_EXT_RX_CMD_NB;
+		else if ((t3 >= 14) && (t3 <= 36))
 			db->rx[0].cmd = DSP_EXT_RX_CMD_AB;
 		else if ((t3 == 4) || (t3 == 5))
 			db->rx[0].cmd = DSP_EXT_RX_CMD_AB;
@@ -271,24 +309,46 @@ l1s_bts_cmd(uint8_t p1, uint8_t p2, uint16_t p3)
 		/* Enable task */
 		dsp_api.db_w->d_task_d = 23;
 
+		/* store current gain */
+		uint8_t last_gain = rffe_get_gain();
+
+		rffe_compute_gain(-110, CAL_DSP_TGT_BB_LVL);
+
 		/* Open RX window */
-		l1s_rx_win_ctrl(l1s.bts.arfcn | ARFCN_UPLINK, L1_RXWIN_NB, 0);
+		if (l1s.bts.mode == 0)
+			l1s_rx_win_ctrl(l1s.bts.arfcn | ARFCN_UPLINK, L1_RXWIN_NB, 0);
+		else
+			l1s_rx_win_ctrl(l1s.bts.arfcn | ARFCN_UPLINK, L1_RXWIN_NB, 1);
+
+		/* restore last gain */
+		rffe_set_gain(last_gain);
 	}
 
 
 	/* TX side */
 	/* ------- */
 
-	#define SLOT 3
+	static int SLOT;
+	if (l1s.bts.mode == 0)
+		SLOT = 3;
+	else
+		SLOT = 0;
 
 	/* Reset all commands to dummy burst */
 	for (i=0; i<8; i++)
 		db->tx[i].cmd = DSP_EXT_TX_CMD_DUMMY;
 
 	/* Get the next burst */
-	type = trx_get_burst(l1s.next_time.fn, 0, data);
+	if (l1s.bts.mode == 0)
+		type = trx_get_burst(l1s.next_time.fn, 0, data);
+	else
+		type = trx_get_burst(l1s.next_time.fn, 1, data);
 
 	/* Program the TX commands */
+	if (t3 == 2 && l1s.bts.mode == 1) {
+#warning HACK: not dual tsc yet
+		db->tx[SLOT].cmd = DSP_EXT_TX_CMD_DUMMY;
+	} else
 	switch (type) {
 	case BURST_FB:
 		db->tx[SLOT].cmd = DSP_EXT_TX_CMD_FB;
@@ -332,7 +392,11 @@ l1s_bts_cmd(uint8_t p1, uint8_t p2, uint16_t p3)
 
 	/* Open TX window */
 	l1s_tx_apc_helper(l1s.bts.arfcn);
-	l1s_tx_multi_win_ctrl(l1s.bts.arfcn, 0, 2, 5);
+//	l1s_tx_multi_win_ctrl(l1s.bts.arfcn, 0, 2, 5);
+	if (l1s.bts.mode == 0)
+		l1s_tx_multi_win_ctrl(l1s.bts.arfcn, 0, 2, 4);
+	else
+		l1s_tx_win_ctrl(l1s.bts.arfcn, L1_TXWIN_NB, 0, 6);
 
 	return 0;
 }

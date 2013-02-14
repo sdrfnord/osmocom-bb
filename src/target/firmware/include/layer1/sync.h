@@ -157,6 +157,7 @@ struct l1s_state {
 
 	/* bts mode */
 	struct {
+		uint8_t mode; /* Jolly's hack: 1 = RX only on RX-TS 1 */
 		uint16_t arfcn;
 		uint8_t bsic;
 	} bts;

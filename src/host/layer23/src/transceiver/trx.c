@@ -44,6 +44,7 @@
 
 #include <osmocom/bb/common/logging.h>
 
+#include "app.h"
 #include "l1ctl.h"
 #include "l1ctl_link.h"
 #include "trx.h"
@@ -115,7 +116,7 @@ err:
 }
 
 struct trx *
-trx_alloc(const char *addr, uint16_t base_port, struct l1ctl_link *l1l)
+trx_alloc(const char *addr, uint16_t base_port, struct app_state *as)
 {
 	struct trx *trx;
 	int rv;
@@ -130,7 +131,7 @@ trx_alloc(const char *addr, uint16_t base_port, struct l1ctl_link *l1l)
 	trx->bsic = BSIC_INVAL;
 
 	/* L1 link */
-	trx->l1l = l1l;
+	trx->as = as;
 
 	/* Clock */
 	rv = _trx_udp_init(trx, &trx->ofd_clk, addr, base_port, _trx_clk_read_cb);
@@ -187,7 +188,7 @@ trx_clk_ind(struct trx *trx, uint32_t fn)
 {
 	char buf[64];
 
-	LOGP(DTRX, LOGL_DEBUG, "TRX CLK Indication %d\n", fn);
+	LOGP(DTRX, LOGL_INFO, "TRX CLK Indication %d\n", fn);
 
 	snprintf(buf, sizeof(buf), "IND CLOCK %d", fn + 2); /* FIXME Dynamic adjust ? */
 	send(trx->ofd_clk.fd, buf, strlen(buf)+1, 0);
@@ -227,7 +228,12 @@ _trx_ctrl_send_resp(struct trx *trx, const char *cmd, const char *fmt, ...)
 static int
 _trx_ctrl_cmd_poweroff(struct trx *trx, const char *cmd, const char *args)
 {
-	l1ctl_tx_bts_mode(trx->l1l, 0, 0, 0);
+	int i;
+
+	trx->power = 0;
+	for (i = 0; i < ARRAY_SIZE(trx->as->l1l); i++)
+		if (trx->as->l1l[i].as)
+			l1ctl_tx_bts_mode(&trx->as->l1l[i], 0, 0, 0);
 
 	return _trx_ctrl_send_resp(trx, cmd, "%d", 0);
 }
@@ -235,14 +241,18 @@ _trx_ctrl_cmd_poweroff(struct trx *trx, const char *cmd, const char *args)
 static int
 _trx_ctrl_cmd_poweron(struct trx *trx, const char *cmd, const char *args)
 {
-	int rv;
+	int rv = 0;
+	int i;
 
 	if (trx->bsic == BSIC_INVAL || trx->arfcn == ARFCN_INVAL) {
 		LOGP(DTRX, LOGL_ERROR,
 			"TRX received POWERON when not fully configured\n");
 		rv = -EINVAL;
 	} else {
-		rv = l1ctl_tx_bts_mode(trx->l1l, 1, trx->bsic, trx->arfcn);
+		trx->power = 1;
+		for (i = 0; i < ARRAY_SIZE(trx->as->l1l); i++)
+			if (trx->as->l1l[i].as)
+				l1ctl_tx_bts_mode(&trx->as->l1l[i], trx->power + i, trx->bsic, trx->arfcn);
 	}
 
 	return _trx_ctrl_send_resp(trx, cmd, "%d", rv);
@@ -488,7 +498,7 @@ _trx_data_read_cb(struct osmo_fd *ofd, unsigned int what)
 	data = buf+6;
 
 	/* Ignore FCCH and SCH completely, they're handled internally */
-	if (((fn % 51) % 10) < 2)
+	if (tn == 0 && (((fn % 51) % 10) < 2))
 		goto skip;
 
 	/* Detect dummy bursts */
@@ -506,10 +516,12 @@ _trx_data_read_cb(struct osmo_fd *ofd, unsigned int what)
 
 	/* Send to L1 */
 	if (tn == 0)
-		l1ctl_tx_bts_burst_req(trx->l1l, fn, tn, burst);
+		l1ctl_tx_bts_burst_req(&trx->as->l1l[0], fn, tn, burst);
+	if (tn == 1)
+		l1ctl_tx_bts_burst_req(&trx->as->l1l[1], fn, tn, burst);
 
 	/* Debug */
-	if (tn == 0)
+	if (tn == 0 || tn == 1)
 		LOGP(DTRX, LOGL_DEBUG, "TRX Data %u:%d:%d:%s\n",
 			fn, tn, pwr_att, osmo_hexdump_nospc(burst->data, 15));
 

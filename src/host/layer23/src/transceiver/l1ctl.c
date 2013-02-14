@@ -163,12 +163,12 @@ l1ctl_tx_bts_burst_req(struct l1ctl_link *l1l,
 /* ------------------------------------------------------------------------ */
 
 static int
-_l1ctl_rx_bts_burst_nb_ind(struct app_state *as, struct msgb *msg)
+_l1ctl_rx_bts_burst_nb_ind(struct l1ctl_link *l1l, struct msgb *msg)
 {
 	struct l1ctl_bts_burst_nb_ind *bi;
 	uint32_t fn;
 	int rc, i;
-	sbit_t data[148];
+	sbit_t data[148], steal[2];
 	float toa;
 
 	bi = (struct l1ctl_bts_burst_nb_ind *) msg->l1h;
@@ -182,18 +182,20 @@ _l1ctl_rx_bts_burst_nb_ind(struct app_state *as, struct msgb *msg)
 
 	fn = ntohl(bi->fn);
 
-	LOGP(DL1C, LOGL_INFO, "Normal Burst Indication (fn=%d)\n", fn);
+	LOGP(DL1C, LOGL_INFO, "Normal Burst Indication (fn=%d, tn=%d)\n", fn, bi->tn);
 
 	memset(data, 0x00, 148);
 
 	osmo_pbit2ubit_ext((ubit_t*)data,  3, bi->data,  0, 57, 0);
 	osmo_pbit2ubit_ext((ubit_t*)data, 88, bi->data, 57, 57, 0);
-	data[60] = data[87] = 1;
+	osmo_pbit2ubit_ext((ubit_t*)steal, 0, bi->data, 114, 2, 0);
+	data[60] = steal[1];
+	data[87] = steal[0];
 
 	for (i=0; i<148; i++)
 		data[i] = data[i] ? -127 : 127;
 
-	trx_data_ind(as->trx, fn, 0, data, 0.0f);
+	trx_data_ind(l1l->as->trx, fn, bi->tn, data, 0.0f);
 
 exit:
 	msgb_free(msg);
@@ -202,7 +204,7 @@ exit:
 }
 
 static int
-_l1ctl_rx_bts_burst_ab_ind(struct app_state *as, struct msgb *msg)
+_l1ctl_rx_bts_burst_ab_ind(struct l1ctl_link *l1l, struct msgb *msg)
 {
 	struct l1ctl_bts_burst_ab_ind *bi;
 	uint32_t fn;
@@ -223,10 +225,10 @@ _l1ctl_rx_bts_burst_ab_ind(struct app_state *as, struct msgb *msg)
 
 	LOGP(DL1C, LOGL_INFO, "Access Burst Indication (fn=%d iq toa=%f)\n", fn, bi->toa);
 
-	gsm_ab_ind_process(as, bi, data, &toa);
+	gsm_ab_ind_process(l1l->as, bi, data, &toa);
 	toa += bi->toa;
 	LOGP(DL1C, LOGL_INFO, "Access Burst Indication (fn=%d toa=%f)\n", fn, toa);
-	trx_data_ind(as->trx, fn, 0, data, toa);
+	trx_data_ind(l1l->as->trx, fn, 0, data, toa);
 
 exit:
 	msgb_free(msg);
@@ -235,7 +237,7 @@ exit:
 }
 
 static int
-_l1ctl_rx_data_ind(struct app_state *as, struct msgb *msg)
+_l1ctl_rx_data_ind(struct l1ctl_link *l1l, struct msgb *msg)
 {
 	struct l1ctl_info_dl *dl;
 	struct l1ctl_data_ind *di;
@@ -259,18 +261,19 @@ _l1ctl_rx_data_ind(struct app_state *as, struct msgb *msg)
 		goto exit;
 	}
 
-#if 0
+#if 1
 	if (dl->fire_crc > 2) {
-		LOGP(DAPP, LOGL_INFO, "Invalid BCCH message, retry sync ...\n");
-		rc = l1ctl_tx_fbsb_req(&as->l1l, as->arfcn_sync, L1CTL_FBSB_F_FB01SB, 100, 0, CCCH_MODE_NONE);
+		LOGP(DAPP, LOGL_NOTICE, "link %d: Invalid BCCH message, retry sync ...\n", l1l->nr);
+//		rc = l1ctl_tx_fbsb_req(&as->l1l, as->arfcn_sync, L1CTL_FBSB_F_FB01SB, 100, 0, CCCH_MODE_NONE);
 	} else {
-		LOGP(DAPP, LOGL_INFO, "Valid BCCH message, sync ok -> switch to BTS mode\n");
+		LOGP(DAPP, LOGL_NOTICE, "link %d: Valid BCCH message, sync ok\n", l1l->nr);
 
 		rc = 0;
 	}
 #endif
 
-	rc = trx_clk_ind(as->trx, ntohl(dl->frame_nr));
+	if (l1l->nr == 0)
+		rc = trx_clk_ind(l1l->as->trx, ntohl(dl->frame_nr));
 
 exit:
 	msgb_free(msg);
@@ -279,7 +282,7 @@ exit:
 }
 
 static int
-_l1ctl_rx_fbsb_conf(struct app_state *as, struct msgb *msg)
+_l1ctl_rx_fbsb_conf(struct l1ctl_link *l1l, struct msgb *msg)
 {
 	struct l1ctl_info_dl *dl;
 	struct l1ctl_fbsb_conf *sc;
@@ -305,9 +308,10 @@ _l1ctl_rx_fbsb_conf(struct app_state *as, struct msgb *msg)
 
 	if (sc->result != 0) {
 		LOGP(DAPP, LOGL_INFO, "Sync failed, retrying ... \n");
-		rc = l1ctl_tx_fbsb_req(&as->l1l, as->arfcn_sync, L1CTL_FBSB_F_FB01SB, 100, 0, CCCH_MODE_NONE);
+		rc = l1ctl_tx_fbsb_req(l1l, l1l->as->arfcn_sync, L1CTL_FBSB_F_FB01SB, 100, 0, CCCH_MODE_NONE);
 	} else {
-		LOGP(DAPP, LOGL_INFO, "Sync acquired, wait for BCCH ...\n");
+		LOGP(DAPP, LOGL_INFO, "Sync acquired, setting BTS mode ...\n");
+		l1ctl_tx_bts_mode(l1l, (l1l->as->trx->power) ? (l1l->as->trx->power + l1l->nr) : 0, l1l->as->trx->bsic, l1l->as->trx->arfcn);
 	}
 
 	rc = 0;
@@ -321,7 +325,7 @@ exit:
 int
 l1ctl_recv(void *data, struct msgb *msg)
 {
-	struct app_state *as = data;
+	struct l1ctl_link *l1l = data;
 	struct l1ctl_hdr *l1h;
 	int rc = 0;
 
@@ -333,25 +337,25 @@ l1ctl_recv(void *data, struct msgb *msg)
 	/* Act */
 	switch (l1h->msg_type) {
 	case L1CTL_BTS_BURST_AB_IND:
-		rc = _l1ctl_rx_bts_burst_ab_ind(as, msg);
+		rc = _l1ctl_rx_bts_burst_ab_ind(l1l, msg);
 		break;
 
 	case L1CTL_BTS_BURST_NB_IND:
-		rc = _l1ctl_rx_bts_burst_nb_ind(as, msg);
+		rc = _l1ctl_rx_bts_burst_nb_ind(l1l, msg);
 		break;
 
 	case L1CTL_DATA_IND:
-		rc = _l1ctl_rx_data_ind(as, msg);
+		rc = _l1ctl_rx_data_ind(l1l, msg);
 		break;
 
 	case L1CTL_FBSB_CONF:
-		rc = _l1ctl_rx_fbsb_conf(as, msg);
+		rc = _l1ctl_rx_fbsb_conf(l1l, msg);
 		break;
 
 	case L1CTL_RESET_IND:
 	case L1CTL_RESET_CONF:
 		LOGP(DAPP, LOGL_INFO, "Reset received: Starting sync.\n");
-		l1ctl_tx_fbsb_req(&as->l1l, as->arfcn_sync, L1CTL_FBSB_F_FB01SB, 100, 0, CCCH_MODE_NONE);
+		l1ctl_tx_fbsb_req(l1l, l1l->as->arfcn_sync, L1CTL_FBSB_F_FB01SB, 100, 0, CCCH_MODE_NONE);
 		msgb_free(msg);
 		break;
 

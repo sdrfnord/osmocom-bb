@@ -43,6 +43,7 @@
 void *l23_ctx = NULL;
 static int arfcn_sync = 0;
 static int daemonize = 0;
+static int second_phone = 0;
 
 static void print_help(char *argv[])
 {
@@ -56,6 +57,7 @@ static void print_help(char *argv[])
 		"  -s   --disable-color    Don't use colors in stderr log output\n"
 		"  -a   --arfcn-sync ARFCN Set ARFCN to sync to\n"
 		"  -p   --arfcn-sync-pcs   The ARFCN above is PCS\n"
+		"  -2   --second-phone     Second phone hack\n"
 		);
 }
 
@@ -71,9 +73,10 @@ static void handle_options(int argc, char **argv, struct app_state *as)
 			{ "disable-color", 0, 0, 's' },
 			{ "arfcn-sync", 1, 0, 'a' },
 			{ "arfcn-sync-pcs", 0, 0, 'p' },
+			{ "second-phone", 0, 0, '2' },
 		};
 
-		c = getopt_long(argc, argv, "hd:e:Dsa:p",
+		c = getopt_long(argc, argv, "hd:e:Dsa:p:2",
 			long_options, &option_idx);
 
 		if (c == -1)
@@ -102,6 +105,9 @@ static void handle_options(int argc, char **argv, struct app_state *as)
 			break;
 		case 'e':
 			log_set_log_level(as->stderr_target, atoi(optarg));
+			break;
+		case '2':
+			second_phone = 1;
 			break;
 		default:
 			fprintf(stderr, "Unknow option %s\n", optarg);
@@ -155,17 +161,31 @@ int main(int argc, char *argv[])
 		exit(-1);
 
 	/* TRX interface with OpenBTS */
-	as->trx = trx_alloc("127.0.0.1", 5700, &as->l1l);
+	as->trx = trx_alloc("127.0.0.1", 5700, as);
 	if (!as->trx)
 		exit(-1);
 
 	/* Establish l1ctl link */
-	rv = l1l_open(&as->l1l, "/tmp/osmocom_l2", l1ctl_recv, as);
+	rv = l1l_open(&as->l1l[0], "/tmp/osmocom_l2", l1ctl_recv, &as->l1l[0]);
 	if (rv)
 		exit(-1);
+	as->l1l[0].nr = 0;
+	as->l1l[0].as = as;
 
 	/* Reset phone */
-	l1ctl_tx_reset_req(&as->l1l, L1CTL_RES_T_FULL);
+	l1ctl_tx_reset_req(&as->l1l[0], L1CTL_RES_T_FULL);
+
+	if (second_phone) {
+		/* Establish l1ctl link */
+		rv = l1l_open(&as->l1l[1], "/tmp/osmocom_l2.2", l1ctl_recv, &as->l1l[1]);
+		if (rv)
+			exit(-1);
+		as->l1l[1].nr = 1;
+		as->l1l[1].as = as;
+
+		/* Reset phone */
+		l1ctl_tx_reset_req(&as->l1l[1], L1CTL_RES_T_FULL);
+	}
 
 	if (daemonize) {
 		rv = osmo_daemonize();

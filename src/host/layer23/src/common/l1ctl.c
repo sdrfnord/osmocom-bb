@@ -259,7 +259,10 @@ printf("Dropping frame with %u bit errors\n", dl->num_biterr);
 
 	/* determine LAPDm entity based on SACCH or not */
 	if (dl->link_id & 0x40)
+{
+puts(osmo_hexdump(msg->l2h, 23));
 		le = &ms->lapdm_channel.lapdm_acch;
+}
 	else
 		le = &ms->lapdm_channel.lapdm_dcch;
 

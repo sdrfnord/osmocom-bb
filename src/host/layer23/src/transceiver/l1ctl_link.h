@@ -32,10 +32,14 @@ typedef int (*l1ctl_cb_t)(void *data, struct msgb *msgb);
 
 struct l1ctl_link
 {
+	int nr;
+
 	struct osmo_wqueue wq;
 
 	l1ctl_cb_t cb;
 	void      *cb_data;
+
+	struct app_state *as;
 };
 
 

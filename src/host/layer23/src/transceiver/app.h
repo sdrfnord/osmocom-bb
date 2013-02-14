@@ -41,7 +41,7 @@ struct app_state
 	struct log_target *stderr_target;
 
 	/* L1CTL link */
-	struct l1ctl_link l1l;
+	struct l1ctl_link l1l[2];
 
 	/* TRX link to OpenBTS */
 	struct trx *trx;

@@ -599,14 +599,19 @@ static int l1ctl_bts_mode(struct msgb *msg)
 	l1s.bts.bsic  = bm->bsic;
 	l1s.bts.arfcn = ntohs(bm->band_arfcn);
 
-	l1s.tx_power = ms_pwr_ctl_lvl(gsm_arfcn2band(l1s.bts.arfcn), 26);
+	l1s.tx_power = ms_pwr_ctl_lvl(gsm_arfcn2band(l1s.bts.arfcn), 15);
 
 	printf("BTS MODE: %u %u %u\n", l1s.bts.bsic, l1s.bts.arfcn, l1s.tx_power);
 
+	l1a_mftask_set(0);
 	if (bm->enabled) {
+		mframe_enable(MF_TASK_BTS_SYNC);
 		mframe_enable(MF_TASK_BTS);
+		l1s.bts.mode = bm->enabled - 1;
 	} else {
-		mframe_disable(MF_TASK_BTS);
+//mframe_enable(MF_TASK_BTS);
+//mframe_enable(MF_TASK_BTS_SYNC);
+		mframe_enable(MF_TASK_BCCH_NORM);
 	}
 
 	return 0;

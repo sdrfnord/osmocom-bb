@@ -35,8 +35,6 @@
 #define ARFCN_INVAL	0xffff
 #define BSIC_INVAL	0xff
 
-struct l1ctl_link;
-
 
 struct trx {
 	/* UDP sockets */
@@ -45,16 +43,17 @@ struct trx {
 	struct osmo_fd ofd_data;
 
 	/* Link to L1CTL */
-	struct l1ctl_link *l1l;
+	struct app_state *as;
 
 	/* TRX configuration */
+	uint8_t power;
 	uint16_t arfcn;
 	uint8_t  bsic;
 };
 
 
 struct trx *trx_alloc(const char *addr, uint16_t base_port,
-                      struct l1ctl_link *l1l);
+                      struct app_state *as);
 void trx_free(struct trx *trx);
 
 int trx_clk_ind(struct trx *trx, uint32_t fn);
