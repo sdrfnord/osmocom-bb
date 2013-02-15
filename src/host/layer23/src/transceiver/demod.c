@@ -64,6 +64,9 @@ gsm_ab_ind_process(struct app_state *as,
 	if (rv)
 		goto err;
 
+	if (cabsf(chan) < 0.5)
+		goto err;
+
 	printf("TOA  : %f\n", toa);
 	printf("chan : (%f %f) => %f\n", crealf(chan), cimagf(chan), cabsf(chan));
 
