@@ -314,7 +314,7 @@ _trx_ctrl_cmd_setslot(struct trx *trx, const char *cmd, const char *args)
 
 	n = sscanf(args, "%d %d", &tn, &type);
 
-	if ((n != 2) || (tn < 0) || (tn > 7) || (type < 0) || (type > 8))
+	if ((n != 2) || (tn < 0) || (tn > 7) || (type < 0) || ((type > 8) && (type != 13)))
 		return _trx_ctrl_send_resp(trx, cmd, "%d %d %d", -1, tn, type);
 
 	return _trx_ctrl_send_resp(trx, cmd, "%d %d", 0, type);
