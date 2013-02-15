@@ -119,6 +119,8 @@ sb_build(uint8_t bsic, uint16_t t1, uint8_t t2, uint8_t t3p)
 }
 
 
+static int bts_gain = -110, max_level = -110;
+
 static int
 l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 {
@@ -130,10 +132,20 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 		/* We're shifted in time since we RX in the 'next' frame */
 
 
+	if (rx_time.t3 == 0) {
+		if (max_level < bts_gain) {
+			bts_gain = max_level;
+//			printf("raise gain to match %ddbm\n", bts_gain);
+		}
+		max_level = -110;
+		printf("gain at %ddbm\n", bts_gain);
+	}
+
 	/* RX side */
 	/* ------- */
 
 	if (rx_time.t3 == 1) {
+#if 0
 		struct msgb *msg;
 		struct l1ctl_bts_burst_nb_ind *bi;
 
@@ -158,6 +170,7 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 
 		/* Send it ! */
 		l1_queue_for_l2(msg);
+#endif
 
 		return 0;
 	}
@@ -165,6 +178,7 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 	/* Access Burst ? */
 	if (db->rx[0].cmd == DSP_EXT_RX_CMD_AB)
 	{
+#if 0
 		static int energy_avg = 0x8000;
 
 		if (db->rx[0].data > ((energy_avg * 20) >> 4))
@@ -198,16 +212,71 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 			l1_queue_for_l2(msg);
 		} else
 			energy_avg = ((energy_avg * 7) + db->rx[0].data) >> 3;
+#else
+		static struct l1ctl_bts_burst_ab_ind _bi[51];
+		static int energy[51];
+		struct l1ctl_bts_burst_ab_ind *bi = &_bi[rx_time.t3];
+		int i, j;
+		uint16_t *iq = &db->data[32];
+
+		energy[rx_time.t3] = 0;
+
+		/* Frame number */
+		bi->fn = htonl(rx_time.fn);
+
+		/* Data (cut to 8 bits */
+		bi->toa = db->rx[1].cmd;
+		if (bi->toa > 68)
+			goto exit;
+		for (i=0,j=(db->rx[1].cmd)<<1; i<2*88; i++,j++)
+			bi->iq[i] = iq[j] >> 8;
+
+		/* energy */
+		energy[rx_time.t3] = db->rx[0].data;
+			
+		if (rx_time.t3 == 46) {
+			struct msgb *msg;
+			int max_energy = 0;
+
+			/* find hottest burst */
+			j = 0;
+			for (i = 0; i < 51; i++) {
+				if (energy[i] > max_energy) {
+					max_energy = energy[i];
+					j = i;
+				}
+				energy[i] = 0;
+			}
+
+			/* Create message */
+			msg = l1ctl_msgb_alloc(L1CTL_BTS_BURST_AB_IND);
+			if (!msg)
+				goto exit;
+
+			memcpy(msgb_put(msg, sizeof(*bi)), &_bi[j], sizeof(*bi));
+
+			/* Send it ! */
+			l1_queue_for_l2(msg);
+		}
+#endif
 	}
 
 	/* Normal Burst ? */
 	else if (db->rx[0].cmd == DSP_EXT_RX_CMD_NB)
 	{
 		uint16_t *d = &db->data[32];
+		int gain = agc_inp_dbm8_by_pm(d[1] >> 3) / 8;
 
-//		if (d[3] > 0x1000) {
+		if (gain > bts_gain) {
+			bts_gain = gain;
+//			printf("lower gain to match %ddbm\n", bts_gain);
+		}
+		if (gain > max_level)
+			max_level = gain;
+
+		if (d[3] > 0x1000) {
 //		if (d[3] > 0x0800) {
-		if (1) {
+//		if (1) {
 			struct msgb *msg;
 			struct l1ctl_bts_burst_nb_ind *bi;
 			int i;
@@ -312,7 +381,7 @@ l1s_bts_cmd(uint8_t p1, uint8_t p2, uint16_t p3)
 		/* store current gain */
 		uint8_t last_gain = rffe_get_gain();
 
-		rffe_compute_gain(-110, CAL_DSP_TGT_BB_LVL);
+		rffe_compute_gain(bts_gain, CAL_DSP_TGT_BB_LVL);
 
 		/* Open RX window */
 		if (l1s.bts.mode == 0)
