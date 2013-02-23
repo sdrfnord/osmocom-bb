@@ -266,6 +266,7 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 	{
 		uint16_t *d = &db->data[32];
 		int gain = agc_inp_dbm8_by_pm(d[1] >> 3) / 8;
+		int16_t toa = (int16_t)d[0] - 3;
 
 		if (gain > bts_gain) {
 			bts_gain = gain;
@@ -300,7 +301,14 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 				bi->tn = 1;
 
 			/* TOA */
-			bi->toa = d[0];
+			if (toa > -32 && toa < 32)
+				bi->toa = toa;
+
+			/* RSSI */
+			if (gain < -110)
+				bi->rssi = -110;
+			else if (gain < 0)
+				bi->rssi = gain;
 
 			/* Pack bits */
 			memset(bi->data, 0x00, sizeof(bi->data));

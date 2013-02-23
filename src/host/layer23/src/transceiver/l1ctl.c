@@ -170,6 +170,7 @@ _l1ctl_rx_bts_burst_nb_ind(struct l1ctl_link *l1l, struct msgb *msg)
 	int rc, i;
 	sbit_t data[148], steal[2];
 	float toa;
+	int8_t rssi;
 
 	bi = (struct l1ctl_bts_burst_nb_ind *) msg->l1h;
 
@@ -181,6 +182,10 @@ _l1ctl_rx_bts_burst_nb_ind(struct l1ctl_link *l1l, struct msgb *msg)
 	}
 
 	fn = ntohl(bi->fn);
+
+	toa = bi->toa * 1.0F;
+
+	rssi = bi->rssi;
 
 	LOGP(DL1C, LOGL_INFO, "Normal Burst Indication (fn=%d, tn=%d)\n", fn, bi->tn);
 
@@ -195,7 +200,7 @@ _l1ctl_rx_bts_burst_nb_ind(struct l1ctl_link *l1l, struct msgb *msg)
 	for (i=0; i<148; i++)
 		data[i] = data[i] ? -127 : 127;
 
-	trx_data_ind(l1l->as->trx, fn, bi->tn, data, 0.0f);
+	trx_data_ind(l1l->as->trx, fn, bi->tn, data, toa, rssi);
 
 exit:
 	msgb_free(msg);
@@ -232,7 +237,7 @@ _l1ctl_rx_bts_burst_ab_ind(struct l1ctl_link *l1l, struct msgb *msg)
 		rc = 0;
 		goto exit;
 	}
-		trx_data_ind(l1l->as->trx, fn, 0, data, toa);
+		trx_data_ind(l1l->as->trx, fn, 0, data, toa, 0);
 
 exit:
 	msgb_free(msg);
