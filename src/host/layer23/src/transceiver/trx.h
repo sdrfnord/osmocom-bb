@@ -49,6 +49,7 @@ struct trx {
 	uint8_t power;
 	uint16_t arfcn;
 	uint8_t  bsic;
+	int gain;
 };
 
 

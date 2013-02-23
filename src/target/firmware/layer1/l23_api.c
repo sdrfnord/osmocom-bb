@@ -608,6 +608,7 @@ static int l1ctl_bts_mode(struct msgb *msg)
 		mframe_enable(MF_TASK_BTS_SYNC);
 		mframe_enable(MF_TASK_BTS);
 		l1s.bts.mode = bm->enabled - 1;
+		l1s.bts.gain = bm->gain;
 	} else {
 //mframe_enable(MF_TASK_BTS);
 //mframe_enable(MF_TASK_BTS_SYNC);

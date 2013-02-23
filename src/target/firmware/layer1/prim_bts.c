@@ -119,8 +119,6 @@ sb_build(uint8_t bsic, uint16_t t1, uint8_t t2, uint8_t t3p)
 }
 
 
-static int bts_gain = -110, max_level = -110;
-
 static int
 l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 {
@@ -131,15 +129,6 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 	gsm_fn2gsmtime(&rx_time, l1s.current_time.fn - 2);
 		/* We're shifted in time since we RX in the 'next' frame */
 
-
-	if (rx_time.t3 == 0) {
-		if (max_level < bts_gain) {
-			bts_gain = max_level;
-//			printf("raise gain to match %ddbm\n", bts_gain);
-		}
-		max_level = -110;
-		printf("gain at %ddbm\n", bts_gain);
-	}
 
 	/* RX side */
 	/* ------- */
@@ -268,13 +257,6 @@ l1s_bts_resp(uint8_t p1, uint8_t p2, uint16_t p3)
 		int gain = agc_inp_dbm8_by_pm(d[1] >> 3) / 8;
 		int16_t toa = (int16_t)d[0] - 3;
 
-		if (gain > bts_gain) {
-			bts_gain = gain;
-//			printf("lower gain to match %ddbm\n", bts_gain);
-		}
-		if (gain > max_level)
-			max_level = gain;
-
 		if (d[3] > 0x1000) {
 //		if (d[3] > 0x0800) {
 //		if (1) {
@@ -389,7 +371,7 @@ l1s_bts_cmd(uint8_t p1, uint8_t p2, uint16_t p3)
 		/* store current gain */
 		uint8_t last_gain = rffe_get_gain();
 
-		rffe_compute_gain(bts_gain, CAL_DSP_TGT_BB_LVL);
+		rffe_compute_gain(-47 - l1s.bts.gain, CAL_DSP_TGT_BB_LVL);
 
 		/* Open RX window */
 		if (l1s.bts.mode == 0)
