@@ -530,9 +530,9 @@ _trx_data_read_cb(struct osmo_fd *ofd, unsigned int what)
 	osmo_ubit2pbit_ext(burst->data, 58, data, 87, 58, 0);
 
 	/* Send to L1 */
-	if (tn == 0)
+	if (tn == 0 && trx->as->l1l[0].as)
 		l1ctl_tx_bts_burst_req(&trx->as->l1l[0], fn, tn, burst);
-	if (tn == 1)
+	if (tn == 1 && trx->as->l1l[1].as)
 		l1ctl_tx_bts_burst_req(&trx->as->l1l[1], fn, tn, burst);
 
 	/* Debug */
