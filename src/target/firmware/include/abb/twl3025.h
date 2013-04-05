@@ -145,6 +145,7 @@ void twl3025_reg_write(uint8_t reg, uint16_t data);
 uint16_t twl3025_reg_read(uint8_t reg);
 
 void twl3025_power_off(void);
+void twl3025_power_off_now(void);
 
 void twl3025_clk13m(int enable);
 
