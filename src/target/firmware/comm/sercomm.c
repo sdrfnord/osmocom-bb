@@ -88,7 +88,7 @@ static struct {
 		uint8_t dlci;
 		uint8_t ctrl;
 	} rx;
-	
+
 } sercomm;
 
 #ifndef HOST_BUILD

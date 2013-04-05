@@ -6,9 +6,9 @@
    are common to simmilar organized displays. */
 
 /*
-	Sketch of Memory Layout 
+	Sketch of Memory Layout
 	Left Upper Corner of Display
-     
+
 			col0  col2
 			   col1
 		      +-------------
@@ -22,7 +22,7 @@
 			...
 
 	Backing store (and internal display memory?) looks like...
-	
+
 	uint8_t mem[] = { A, B, C, .... Q, R, S, ... }
 
    We work on a in-memory copy of the framebuffer and only

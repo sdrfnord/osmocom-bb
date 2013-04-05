@@ -66,7 +66,7 @@
 /* we declare overvoltage at this point... */
 #define VBAT_fail   PHYSICAL_TO_ADC(4250,VBAT_LSB_uV)
 
-/* DAC to ADC offsets in CC mode with my C123 
+/* DAC to ADC offsets in CC mode with my C123
    IMEI 358317015976471, P329431014
 
    I/mA DAC     ADC
@@ -299,7 +299,7 @@ bat_compal_e88_upd_measurements(){
         printf("\tCharging at %d LSB (%d mA).\n",ICHG_set,
                 ADC_TO_PHYSICAL(ICHG_set,ICHG_LSB_uA));
         i = twl3025_reg_read(BCICTL2);
-        printf("\tBCICTL2=0x%03x\n",i);      
+        printf("\tBCICTL2=0x%03x\n",i);
 	printf("\tbattery-info.flags=0x%08x\n",battery_info.flags);
 	printf("\tbat_compal_e88_chg_state=%d\n",bat_compal_e88_chg_state);
 }
@@ -312,7 +312,7 @@ bat_compal_e88_upd_measurements(){
  *
  * Return 0 if new ADC values have been acquired, 1 if ADC
  * has been scheduled for a new conversion or is not yet finished.
- * 
+ *
  */
 
 enum bat_compal_e88_madc_stat {

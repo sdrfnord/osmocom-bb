@@ -1,4 +1,5 @@
-/* main program of Free Software for Calypso Phone */
+/* Hello world program of Free Software for Calypso Phone.
+ * You can use this code as template for your application. */
 
 /* (C) 2010 by Harald Welte <laforge@gnumonks.org>
  *

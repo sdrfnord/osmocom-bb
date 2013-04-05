@@ -8,7 +8,7 @@ Flash linkages are structured as follows:
     Linked at address of original compal application (0x2000).
     Provides interrupt vectors as expected by compal loader.
     Allows interrupt redirection (XXX to where?).
-    
+
     We introduce this for the following reasons:
     1. We want to start our app at 0x10000, because that
        is the first flash page after the loader page, allowing

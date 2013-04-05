@@ -20,7 +20,7 @@ struct display {
 	pxsize_t width;
 	pxsize_t height;
 
-	/* We always operate on an in-memory frame buffer that 
+	/* We always operate on an in-memory frame buffer that
 	 * can be put on display using damage functions provided
 	 * by the image class.
 	 */

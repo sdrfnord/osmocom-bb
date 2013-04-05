@@ -16,7 +16,7 @@
 	:							\
 	: "memory", "cc");					\
 	})
-	
+
 /* Save IRQ flags and disable FIQ + IRQ */
 #define local_firq_save(x)					\
 	({							\

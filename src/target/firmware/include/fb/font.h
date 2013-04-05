@@ -7,7 +7,7 @@
 /*
 	Example:
 		Font Helvetica 14
-		
+
 
 	Character W ('X' and '.' is the character font data)
 
@@ -28,12 +28,12 @@
 	   $ is the cursor position (origin) for the next character
 	   % is the character boundingbox origin,
 	   & is the character boundingbox top right corner
-	     
+
  */
 
 /* data for char c is found by getting the index into the
    chardata array from the charoffs array.
-   
+
    if charoffs[c] == FB_FONT_NOCHAR, then this glyph does
    not exist! Better use the convenience function fb_font_get_char below! */
 

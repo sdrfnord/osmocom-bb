@@ -31,7 +31,7 @@
 void
 fb_rgb332_clear(){
 	int i,n;
-	
+
 	/* bytes to clear */
 	n = framebuffer->height * framebuffer->width;
 	for(i=0;i<n;i++)
@@ -54,7 +54,7 @@ fb_rgb332_update_damage(
 	uint16_t x2,uint16_t y2  /* right lower corner (inclusive) */
 ){
 	fb_sanitize_box(&x1,&y1,&x2,&y2);
-	
+
 	x2++; /* see definition of fb_rgb332->damage_x2/y2 */
 	y2++;
 
@@ -118,7 +118,7 @@ void fb_rgb332_boxto(uint16_t x2,uint16_t y2)
 
 	framebuffer->cursor_x = x2;
 	framebuffer->cursor_y = y2;
-	
+
 	fb_sanitize_box(&x1,&y1,&x2,&y2);
 	fb_rgb332_update_damage(x1,y1,x2,y2);
 
