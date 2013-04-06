@@ -156,33 +156,41 @@ fb_bw8_boxto(uint16_t x,uint16_t y){
 	framebuffer->cursor_y = y;
 }
 
-/* just set this pixel to the current front ground color */
-void set_pixel_r(uint16_t x,uint16_t y){
+/* Just set the given pixel to the current front ground color.
+ * This function does not update the damage rectangle! */
+void fb_bw8_set_pixel(uint16_t x,uint16_t y){
 	uint8_t *p = fb_bw8->mem + (y/8)*framebuffer->width + x;
 	uint8_t and_mask = 0xff, or_mask = 0x00;
-    set_fg_pixel(&and_mask, &or_mask, y % 8);
-    *p = (*p & and_mask)|or_mask;
-    /* printf("fb_bw8.c: Set: (%u|%u)\n", x, y); */
+	set_fg_pixel(&and_mask, &or_mask, y % 8);
+	*p = (*p & and_mask)|or_mask;
+	/* printf("fb_bw8_set_pixel: set: (%u|%u)\n", x, y); */
 }
 
 /* Copy Paste from
  * http://de.wikipedia.org/wiki/Bresenham-Algorithmus#Kompakte_Variante */
 static void fb_bw8_line(int16_t x1,int16_t y1,int16_t x2,int16_t y2){
+	fb_limit_fb_range(&x1, &y1);
+	fb_limit_fb_range(&x2, &y2);
 	fb_bw8_update_damage(x1,y1,x2,y2);
-    fb_limit_fb_range(&x1, &y1);
-    fb_limit_fb_range(&x2, &y2);
-    /* printf("fb_bw8_line from (%u|%u) -> (%u|%u)\n", x1, y1, x2, y2); */
-    int16_t dx =  abs(x2-x1), dy = -abs(y2-y1);
-    int16_t sx = x1<x2 ? 1 : -1, sy = y1<y2 ? 1 : -1;
-    int16_t err = dx+dy, e2; /* error value e_xy */
+	/* printf("fb_bw8_line from (%u|%u) -> (%u|%u)\n", x1, y1, x2, y2); */
+	int16_t dx =  abs(x2-x1), dy = -abs(y2-y1);
+	int16_t sx = x1<x2 ? 1 : -1, sy = y1<y2 ? 1 : -1;
+	int16_t err = dx+dy, e2; /* error value e_xy */
 
-    for(;;){  /* loop */
-        set_pixel_r(x1,y1);
-        if (x1==x2 && y1==y2) break;
-        e2 = 2*err;
-        if (e2 > dy) { err += dy; x1 += sx; } /* e_xy+e_x > 0 */
-        if (e2 < dx) { err += dx; y1 += sy; } /* e_xy+e_y < 0 */
-    }
+	while (1) {
+		fb_bw8_set_pixel(x1,y1);
+		if (x1==x2 && y1==y2) break;
+		e2 = 2*err;
+		if (e2 > dy) { err += dy; x1 += sx; } /* e_xy+e_x > 0 */
+		if (e2 < dx) { err += dx; y1 += sy; } /* e_xy+e_y < 0 */
+	}
+}
+
+/* Set the given pixel to the current front ground color and update the damage
+ * rectangle. */
+void fb_bw8_set_p(uint16_t x,uint16_t y){
+	fb_bw8_update_damage(x,y,x+1,y+1);
+	fb_bw8_set_pixel(x,y);
 }
 
 void fb_bw8_lineto(uint16_t x,uint16_t y){
