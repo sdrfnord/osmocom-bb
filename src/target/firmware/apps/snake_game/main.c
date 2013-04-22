@@ -80,7 +80,7 @@ struct position {
 } pos;
 
 uint8_t field[WIDTH][HEIGHT];
-uint16_t score = 0, lenght = 0;
+int16_t score = 0, lenght = 0;
 enum errors { ALLRIGHT, SNAKE_COL,  } err;
 
 void printField();
@@ -177,7 +177,7 @@ void setItem(int x, int y, int item) {
 		switch (field[x][y]) {
 			case FOOD: score++; setFood(); item = HEAD_FOOD; break;
 			case BLANK: break;
-			default: err = SNAKE_COL;
+			default: err = SNAKE_COL;score--;
 		}
 	}
 	field[x][y] = item;
@@ -213,7 +213,7 @@ void printField() {
 	switch (err) {
 		case SNAKE_COL: fb_putstr("The snake ate itself!!!", framebuffer->width);
 				err = ALLRIGHT; break;
-		default: sprintf(text, "Score: %u", score);
+		default: sprintf(text, "Score: %d", score);
 				fb_putstr(text, framebuffer->width);
 				framebuffer->cursor_x = 45;
 				fb_putstr("OsmocomBB", framebuffer->width);
@@ -350,6 +350,7 @@ int main(void)
 
 	fb_clear();
 	bl_level(255);
+	osmo_timers_update();
 
 	intro();
 	delay_ms(5000);
@@ -359,24 +360,13 @@ int main(void)
 	fb_setfg(FB_COLOR_BLACK);
 	fb_setbg(FB_COLOR_WHITE);
 	fb_setfont(FB_FONT_HELVR08);
-	int y = 0, i;
-	/* for (i = 1; i <= 7; i++) { */
-	/* 	printf("%d\n", i); */
-	/* 	print_display("OOOOOOOOOOOOOOOO", &y, cursor - 1); */
-	/* } */
-	/* print_snake_str("U",0, 0); */
-	/* print_snake_str("U",0, 2); */
-	/* print_snake_str("U",2, 0); */
-	print_snake_str("U",2, 0);
-	print_snake_str("U",2, 5);
-	print_snake_str("U",6, 0);
 	fb_flush();
 
         pos.x = framebuffer->width/(6 * 2);
         pos.y = framebuffer->height/(8 * 2);
 	setItem(pos.x, pos.y, HEAD);
 
-	osmo_timers_update();
+	while (battery_info.bat_volt_mV == 0) osmo_timers_update();
 	srand(battery_info.bat_volt_mV);
 	if (DEBUG > 0) printf("Initialize random number generator with %d\n", battery_info.bat_volt_mV);
 	setFood();
