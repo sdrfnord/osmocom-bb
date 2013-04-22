@@ -48,6 +48,16 @@
 #include <fb/framebuffer.h>
 #include <battery/battery.h>
 
+unsigned long next = 1;
+/* This is not a good random number generator ... */
+int rand(void) {
+	next = next * 110351 + 12;
+	return (unsigned int)(next & 0x7fff);
+}
+void srand(unsigned int seed) {
+	next = seed;
+}
+
 #define BLANK 0
 #define HEAD 1
 #define TAIL 2
@@ -60,6 +70,10 @@
 #define STDLEN 3
 #define HEIGHT 7
 #define WIDTH 16
+
+/* Time in ms to wait to the next auto move of the snake. */
+#define WAIT_TIME_AUTOMOVE 300
+
 struct position {
 	int x;
 	int y;
@@ -75,14 +89,16 @@ void movepos(char);
 void increaseBodyAge();
 void setFood() {
 	int x, y, c;
-	/* for (c = 0; c < 10;c++) { */
-	/* 	x = rand() % (WIDTH -1); */
-	/* 	y = rand() % (HEIGHT -1); */
-	/* 	if (field[x][y] == BLANK) { */
-	/* 		field[x][y] = FOOD; */
-	/* 		return; */
-	/* 	} */
-	/* } */
+	for (c = 0; c < 10;c++) {
+		x = rand() % (WIDTH -1);
+		y = rand() % (HEIGHT -1);
+		if (DEBUG > 0) printf("Next %u\n", next);
+		if (DEBUG > 0) printf("Rand (%d|%d)\n", x, y);
+		if (field[x][y] == BLANK) {
+			field[x][y] = FOOD;
+			return;
+		}
+	}
 	for (x = 0; x < WIDTH; x++) {
 		for (y = 0; y < HEIGHT; y++) {
 			if (field[x][y] == BLANK) {
@@ -98,25 +114,29 @@ static void print_snake_str(char *text, int16_t x, int16_t y)
 {
 	x = 6 * x;
 	y = 8 * (y+1) -3;
-	printf("Put string %s to (%d|%d)\n", text, x, y);
+	if (DEBUG > 1) printf("Put string %s to (%d|%d)\n", text, x, y);
 	fb_gotoxy(x, y);
 	fb_putstr(text, framebuffer->width);
 }
-void movepos(char dim) {
+
+
+char Move;
+void movepos(char move) {
+	Move = move;
 	setItem(pos.x, pos.y, SBODY);
-	switch (dim) {
-		case 'Y': pos.y++;break;
-		case 'y': pos.y--;break;
-		case 'X': pos.x++;break;
-		case 'x': pos.x--;break;
+	switch (move) {
+		case 'h': pos.x--;break;
+		case 'j': pos.y++;break;
+		case 'k': pos.y--;break;
+		case 'l': pos.x++;break;
 	}
-	switch (dim) {
-		case 'Y': case 'y':
+	switch (move) {
+		case 'j': case 'k':
 			if (pos.y == -1) pos.y = HEIGHT -1;
 			else if (pos.y == HEIGHT) pos.y = 0;
 			increaseBodyAge();
 			break;
-		case 'X': case 'x':
+		case 'l': case 'h':
 			if (pos.x == -1) pos.x = WIDTH -1;
 			else if (pos.x == WIDTH) pos.x = 0;
 			increaseBodyAge();
@@ -124,6 +144,21 @@ void movepos(char dim) {
 	}
 	setItem(pos.x, pos.y, HEAD);
 	printField();
+}
+void movepos_timer_cb(void *p) {
+	struct osmo_timer_list *tmr = (struct osmo_timer_list*)p;
+	if (DEBUG > 0) printf("Auto move %c\n", Move);
+	movepos(Move);
+
+	osmo_timer_schedule(tmr, WAIT_TIME_AUTOMOVE);
+}
+static struct osmo_timer_list move_snake_timer = {
+	.cb = &movepos_timer_cb,
+	.data = &move_snake_timer
+};
+void movepos_keypress(char keypress) {
+	Move = keypress;
+	osmo_timer_schedule(&move_snake_timer, 0);
 }
 
 void increaseBodyAge() {
@@ -309,15 +344,12 @@ int main(void)
 	calypso_clk_dump();
 	puts(hr);
 
-	keypad_set_handler(&key_handler);
-
 	/* Dump clock config after PLL set */
 	calypso_clk_dump();
 	puts(hr);
 
 	fb_clear();
 	bl_level(255);
-	/* srand(23); // need time or other changing value */
 
 	intro();
 	delay_ms(5000);
@@ -343,6 +375,10 @@ int main(void)
         pos.x = framebuffer->width/(6 * 2);
         pos.y = framebuffer->height/(8 * 2);
 	setItem(pos.x, pos.y, HEAD);
+
+	osmo_timers_update();
+	srand(battery_info.bat_volt_mV);
+	if (DEBUG > 0) printf("Initialize random number generator with %d\n", battery_info.bat_volt_mV);
 	setFood();
 	printf("Put string to (%d|%d)\n", pos.x, pos.y);
 	printField();
@@ -350,6 +386,7 @@ int main(void)
 
 	sercomm_register_rx_cb(SC_DLCI_CONSOLE, console_rx_cb);
 	sercomm_register_rx_cb(SC_DLCI_L1A_L23, l1a_l23_rx_cb);
+	keypad_set_handler(&key_handler);
 
 	/* beyond this point we only react to interrupts */
 	puts("entering interrupt loop\n");
@@ -364,19 +401,22 @@ int main(void)
 
 void key_handler(enum key_codes code, enum key_states state)
 {
+	if (!osmo_timer_pending(&move_snake_timer)) {
+		osmo_timer_schedule(&move_snake_timer,WAIT_TIME_AUTOMOVE);
+	}
 	if (state != PRESSED)
 		return;
 
 	switch (code) {
 	case KEY_0: bl_level(0);break;
 	case KEY_1: bl_level(10);break;
-	case KEY_2: movepos('y');break;
+	case KEY_2: movepos_keypress('k');break;
 	case KEY_3: bl_level(30);break;
-	case KEY_4: movepos('x');break;
+	case KEY_4: movepos_keypress('h');break;
 	case KEY_5: bl_level(50);break;
-	case KEY_6: movepos('X');break;
+	case KEY_6: movepos_keypress('l');break;
 	case KEY_7: bl_level(150);break;
-	case KEY_8: movepos('Y');break;
+	case KEY_8: movepos_keypress('j');break;
 	case KEY_9: bl_level(255);break;
 		// used to be display_puts...
 		break;
@@ -395,10 +435,10 @@ void key_handler(enum key_codes code, enum key_states state)
 	case KEY_POWER:
 		twl3025_power_off_now();
 		break;
-	case KEY_RIGHT: movepos('X'); break;
-	case KEY_LEFT:  movepos('x'); break;
-	case KEY_UP:    movepos('y'); break;
-	case KEY_DOWN:  movepos('Y'); break;
+	case KEY_RIGHT: movepos_keypress('l'); break;
+	case KEY_LEFT:  movepos_keypress('h'); break;
+	case KEY_UP:    movepos_keypress('k'); break;
+	case KEY_DOWN:  movepos_keypress('j'); break;
 	default:
 		break;
 	}
