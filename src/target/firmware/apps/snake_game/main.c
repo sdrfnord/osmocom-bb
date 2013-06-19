@@ -217,7 +217,7 @@ void setItem(int x, int y, int item)
 	field[x][y] = item;
 }
 
-wohnung void resetField()
+void resetField()
 {
 	/* system("clear"); */
 	printf("\033[H\033[2J");
